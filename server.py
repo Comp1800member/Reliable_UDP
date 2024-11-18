@@ -1,3 +1,4 @@
+import select
 import socket
 import os
 import argparse
@@ -53,13 +54,21 @@ if __name__ == "__main__":
 
     try:
         while True:
-            # Receive data from client
-            data, client_address = socket.recvfrom(1024)
-            print(f"Received '{data.decode()}' from {client_address}")
+            ready, _, _ = select.select([socket], [], [], 2)
 
-            # Send response back to client
-            response = f"Hello, {data.decode()}!"
-            socket.sendto(response.encode(), client_address)
+            if not ready:
+                print("nothing received in last 2 seconds")
+                continue
+
+            for sock in ready:
+                if sock == socket:
+                    # Receive data from client
+                    data, client_address = socket.recvfrom(1024)
+                    print(f"Received '{data.decode()}' from {client_address}")
+
+                    # Send response back to client
+                    response = f"Hello, {data.decode()}!"
+                    socket.sendto(response.encode(), client_address)
     except KeyboardInterrupt:
         print("\nKeyboard Interrupt: Server shutting down.")
         exit(-1)
