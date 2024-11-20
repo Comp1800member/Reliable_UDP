@@ -24,53 +24,62 @@ def parse_arguments():
     handle_arguments(args)
     return args
 
-def socket_create():
+def create_socket():
     #note to self, changed to DGRAM for UDP
     return socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-def socket_bind(server_socket, ip_addr, port):
+def bind_socket(server_socket, ip_addr, port):
     try:
         server_socket.bind((ip_addr, port))
     except OSError as e:
         print(f"Binding failed: {e}")
         exit(-1)
 
-def socket_close(socket):
+def close_socket(sock_to_close):
     try:
-        socket.close()
+        sock_to_close.close()
     except OSError as e:
         print(e)
         exit(-1)
+
+def receive_data(server_socket):
+    try:
+        data, client_address = server_socket.recvfrom(1024)
+    except Exception as e:
+        print(e)
+        exit(-1)
+    return data, client_address
+
+def send_ack():
+    pass
+
 
 if __name__ == "__main__":
     args = parse_arguments()
     port = args.listen_port
     ip_addr = args.listen_ip
-    socket = socket_create()
+    socket = create_socket()
 
-    socket_bind(socket, ip_addr, port)
+    bind_socket(socket, ip_addr, port)
 
     print(f"Server listening on {port}")
-
+    timeout = 2
     try:
         while True:
             ready, _, _ = select.select([socket], [], [], 2)
-
             if not ready:
-                print("nothing received in last 2 seconds")
-                continue
-
+                print(f"Nothing received in last {timeout} seconds")
+            #currently only socket we are listening for is the server's socket,
+            #so not really handling anything else, just getting data and stuff for that.
             for sock in ready:
-                if sock == socket:
-                    # Receive data from client
-                    data, client_address = socket.recvfrom(1024)
-                    print(f"Received '{data.decode()}' from {client_address}")
+                    data, client_addr = receive_data(socket)
+                    print(f"Received '{data.decode()} from {client_addr}")
 
-                    # Send response back to client
-                    response = f"Hello, {data.decode()}!"
-                    socket.sendto(response.encode(), client_address)
+                    response = f"Hello, {data.decode()}"
+                    socket.sendto(response.encode(), client_addr)
+
     except KeyboardInterrupt:
         print("\nKeyboard Interrupt: Server shutting down.")
         exit(-1)
     finally:
-        socket_close(socket)
+        close_socket(socket)
