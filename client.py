@@ -6,14 +6,16 @@ import select
 from math import remainder
 from socket import send_fds
 
-import utils
+from utils import compile_packet
 
 IP = ""
 PORT = 0
 TIMEOUT = 2
-BUFFER_SIZE = 1009  # in bytes, excluding 15 bytes = packet_size (4 bytes) + sequence_number (4 bytes) + acknowledgement_number (4 bytes) + 3 * ";" (1 byte)
+PACKET_SIZE = 1024
 
 RECEIVED_PACKET = ""
+
+# TODO - Billy: Make client handle packet max size and segmentation
 
 def parse_arguments():
     global IP, PORT, TIMEOUT
@@ -47,14 +49,14 @@ def create_socket():
     return fd
 
 def handle_send(fd, encoded_message):
-    num_segments = math.ceil(len(encoded_message) / BUFFER_SIZE)
-    # if remainder(num_segments, BUFFER_SIZE) != 0:
+    num_segments = math.ceil(len(encoded_message) / PACKET_SIZE)
+    # if remainder(num_segments, PACKET_SIZE) != 0:
     #     num_segments += 1
 
     segments = [
-        encoded_message[i * BUFFER_SIZE:(i + 1) * BUFFER_SIZE] for i in range(num_segments)
+        encoded_message[i * PACKET_SIZE:(i + 1) * PACKET_SIZE] for i in range(num_segments)
     ]
-
+    
     decoded_segments = [segment.decode("utf-8") for segment in segments]
     print("Number of segments:", num_segments)
     print("Segments:", decoded_segments)
@@ -84,12 +86,12 @@ def send_packet(fd, encoded_message):
 
 def receive_ack(fd):
     global RECEIVED_PACKET
-    response, server_address = fd.recvfrom(BUFFER_SIZE)
+    response, server_address = fd.recvfrom(PACKET_SIZE)
 
     # Handling duplicated ACK
     while response == RECEIVED_PACKET:
         print("Client - Duplicated acknowledgement.")
-        response, server_address = fd.recvfrom(BUFFER_SIZE)
+        response, server_address = fd.recvfrom(PACKET_SIZE)
 
         if response != RECEIVED_PACKET:
             print("Client - New acknowledgement.")
@@ -99,12 +101,12 @@ def receive_ack(fd):
     print(f"Response from Server: {response.decode()}")
 
 if __name__ == "__main__":
-    parse_arguments()
-    client_socket = create_socket()
-    start_transmission(client_socket)
-    print("Client - Closing socket")
-    client_socket.close()
+    # parse_arguments()
+    # client_socket = create_socket()
+    # start_transmission(client_socket)
+    # print("Client - Closing socket")
+    # client_socket.close()
 
-    # message = "Hello World"
-    # packet = compile_packet(message)
-    # print(f"Packet: {packet}")
+    message = "Hello World"
+    packet = compile_packet(1, 1, 0, message)
+    print(f"Packet: {packet}")
