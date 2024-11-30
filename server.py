@@ -71,13 +71,10 @@ if __name__ == '__main__':
 
     try:
         while True:
-            ready, _, _ = select.select([socket], [], [])
+            ready, _, _ = select.select([server_socket], [], [])
             for sock in ready:
                 data, client_addr = server_socket.recvfrom(1024)  # Buffer size of 1024 bytes
                 print(f"Received '{data.decode()} from {client_addr}")
-
-                response = f"Hello, {data.decode()}"
-                server_socket.sendto(response.encode(), client_addr)
 
                 # Test: delay scenario
                 # if not set_delay:
