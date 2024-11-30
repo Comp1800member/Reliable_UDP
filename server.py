@@ -1,4 +1,5 @@
 import socket
+import time
 from utils import compile_packet, get_fields, INIT_PACKET
 
 # Define the IP address and port for the server
@@ -22,9 +23,10 @@ while True:
     print(f"Received message: {data.decode()} from {client_address}")
 
     # Test: delay scenario
-    # if not set_delay:
-    #     time.sleep(5)
-    #     set_delay = True
+    if not set_delay:
+        print("Delaying...")
+        time.sleep(5)
+        set_delay = True
 
     _, received_seq_num, received_ack_num, received_payload = get_fields(data)
     seq_num = received_ack_num
