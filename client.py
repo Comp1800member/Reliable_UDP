@@ -2,19 +2,17 @@ import argparse
 import math
 import sys
 import socket
-import select
-import time
+import ipaddress
 
-from utils import compile_packet, get_fields, INIT_PACKET
+from utils import compile_packet, get_fields, INIT_PACKET, PAYLOAD_SIZE
 
 IP = ""
 PORT = 0
-TIMEOUT = 2
-BUFFER_SIZE = 2048
+TIMEOUT = 2.0
+BUFFER_SIZE = 4096
 
 ACK_PACKET = None
 MAX_RETRIES = 3
-start_time = 0.0
 
 # TODO - Billy: Make client handle packet max size and segmentation
 
@@ -32,8 +30,15 @@ def parse_arguments():
         parser.print_help()
         sys.exit()
 
-    IP = args.target_ip
-    PORT = args.target_port
+    if ipaddress.ip_address(args.target_ip):
+        IP = args.target_ip
+    else:
+        sys.exit("Error: Invalid IP address.")
+
+    if 65535 < args.target_port < 1:
+        PORT = args.target_port
+    else:
+        sys.exit("Error: Invalid port number. (1 <= PORT <= 65535)")
 
     if args.timeout is not None:
         TIMEOUT = args.timeout
@@ -42,72 +47,25 @@ def create_socket():
     print("Client - Creating socket...")
     try:
         fd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # fd.setblocking(False)
 
     except socket.error as e:
-        print("Client - Error creating socket: {}".format(e))
-        sys.exit()
+        sys.exit("Client - Error creating socket: {}".format(e))
 
     return fd
 
-def handle_send(fd, encoded_message):
-    global start_time
-    retries = 0
-    seq_num = INIT_PACKET
-    received_payload_size = 0
-
-    # TODO Billy: Re-calculate payload size to send (must exclude the first 3 lengths)
-    num_segments = math.ceil(len(encoded_message) / 2048)
-    # if remainder(num_segments, 2048) != 0:
-    #     num_segments += 1
+def segment_packet(payload):
+    num_segments = math.ceil(len(payload) / PAYLOAD_SIZE)
+    print("Number of segments:", num_segments)
 
     segments = [
-        encoded_message[i * BUFFER_SIZE:(i + 1) * BUFFER_SIZE] for i in range(num_segments)
+        payload[i * PAYLOAD_SIZE:(i + 1) * PAYLOAD_SIZE] for i in range(num_segments)
     ]
-    
-    decoded_segments = [segment.decode("utf-8") for segment in segments]
-    print("Number of segments:", num_segments)
-    print("Segments:", decoded_segments)
 
-    for segment in decoded_segments:
-        packet_to_send = compile_packet(seq_num, received_payload_size, segment)
-
-        # ready_sockets, _, _  = select.select([fd], [], [])
-
-        # Send packet
-        # if fd in write_list:
-        send_packet(fd, packet_to_send)
-
-        while retries < MAX_RETRIES:
-            print("Client - Waiting for acknowledgement...")
-            # Receive ack
-            if fd:
-                print("Client - Receiving ACK")
-                receive_ack(fd)
-
-                # client's seq_num == server's ack_num
-                _, _, seq_num, payload = get_fields(ACK_PACKET)
-                received_payload_size = len(payload)
-                break
-
-            # Re-transmit packet
-            if time.time() - start_time < TIMEOUT:
-                print("Client - Received no acknowledgements, timed out.")
-                retries += 1
-                print(f"Client - Resending packet. Retry #{retries}")
-                send_packet(fd, packet_to_send)
-
-            # if fd in error_list:
-            #     print("Client - Socket error occurred. Try again.")
-            #     sys.exit()
-
-        if retries >= MAX_RETRIES:
-            print("Client - Maximum retries exceeded. Try again.")
-            sys.exit()
+    return [segment.decode("utf-8") for segment in segments]
 
 def start_transmission(fd):
     while True:
-        message = input("Message to send to the server (type 'exit' to quit):\n")
+        message = input("Message to send to the server (type 'exit' or ctrl+D to quit):\n")
         if message.lower() == "exit":
             print("Client - Exiting...")
             return
@@ -115,39 +73,81 @@ def start_transmission(fd):
         handle_send(fd, message.encode())
 
 def send_packet(fd, encoded_packet):
-    global start_time
     try:
         print(f"Client - Sending packet {encoded_packet}. Starting timer...")
         fd.sendto(encoded_packet, (IP, PORT))
-        start_time = time.time()
+        fd.settimeout(TIMEOUT)
     except socket.error as e:
         print(f"Client - Error sending packet: {format(e)}. Try again.")
+        fd.close()
+        sys.exit()
 
-def is_duplicated_packet(last_packet):
+def is_duplicated_packet(received_packet):
     global ACK_PACKET
-    return last_packet == ACK_PACKET
+    return ACK_PACKET == received_packet
 
 def receive_ack(fd):
     global ACK_PACKET
+    received_packet = None
     try:
-        last_packet = None
-        # Handling duplicated ACK
         while True:
-            ACK_PACKET, server_address = fd.recvfrom(BUFFER_SIZE)
+            print("Client - Waiting for acknowledgement...")
+            received_packet, server_address = fd.recvfrom(BUFFER_SIZE)
 
-            if not is_duplicated_packet(last_packet):
+            # Handling duplicated ACK
+            if not is_duplicated_packet(received_packet):
                 print("Client - New acknowledgement.")
+                ACK_PACKET = received_packet
                 break
-            else:
-                print("Client - Duplicated acknowledgement.")
 
-            last_packet = ACK_PACKET
+            print("Client - Duplicated acknowledgement.")
+            print(f"Client - Received packet {received_packet}")
+
+    except socket.timeout as e:
+        print("Client - Received no acknowledgements, timed out.")
+        ACK_PACKET = received_packet
+        return False
 
     except socket.error as e:
         print(f"Client - Error receiving ACK: {format(e)}. Try again.")
+        fd.close()
         sys.exit()
 
-    print(f"Response from Server: {ACK_PACKET.decode()}")
+    return True
+
+def handle_send(fd, encoded_message):
+    retries = 0
+    seq_num = INIT_PACKET
+    received_seq_num = INIT_PACKET
+    received_payload_size = 0
+
+    decoded_segments = segment_packet(encoded_message)
+    print("Segments to send:", decoded_segments)
+
+    for segment in decoded_segments:
+        packet_to_send = compile_packet(seq_num, received_seq_num, received_payload_size, segment)
+
+        # Send packet
+        send_packet(fd, packet_to_send)
+
+        # Receive ack
+        while retries < MAX_RETRIES:
+            # Re-transmit packet
+            if not receive_ack(fd):
+                retries += 1
+                print(f"Client - Resending packet. Retry #{retries}")
+                send_packet(fd, packet_to_send)
+            else:
+                break
+
+        if retries >= MAX_RETRIES:
+            print("Client - Maximum retries exceeded. Try again.")
+            fd.close()
+            sys.exit()
+
+        _, received_seq_num, received_ack_num, payload = get_fields(ACK_PACKET)
+        received_payload_size = len(payload)
+        seq_num = received_ack_num
 
 if __name__ == "__main__":
     parse_arguments()
