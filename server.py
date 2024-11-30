@@ -73,7 +73,7 @@ if __name__ == '__main__':
         while True:
             ready, _, _ = select.select([server_socket], [], [])
             for sock in ready:
-                data, client_addr = server_socket.recvfrom(1024)  # Buffer size of 1024 bytes
+                data, client_addr = receive_data(sock)  # Buffer size of 1024 bytes
                 print(f"Received '{data.decode()} from {client_addr}")
 
                 # Test: delay scenario
