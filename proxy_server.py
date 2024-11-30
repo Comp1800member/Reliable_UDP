@@ -96,6 +96,26 @@ def handle_value_or_range(delay):
             print(e)
             exit(-1)
 
+def create_socket():
+    # note to self, changed to DGRAM for UDP
+    return socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+
+def bind_socket(proxy_socket, ip_addr, port):
+    try:
+        proxy_socket.bind((ip_addr, port))
+    except OSError as e:
+        print(f"Binding failed: {e}")
+        exit(-1)
+
+
+def close_socket(sock_to_close):
+    try:
+        sock_to_close.close()
+    except OSError as e:
+        print(e)
+        exit(-1)
+
 if __name__ == '__main__':
 
 
