@@ -26,8 +26,9 @@ while True:
     #     time.sleep(5)
     #     set_delay = True
 
-    _, _, seq_num, payload = get_fields(data)
-    print(f"Payload from Client: {payload}")
-    packet_to_send = compile_packet(seq_num, len(payload), "")
+    _, received_seq_num, received_ack_num, received_payload = get_fields(data)
+    seq_num = received_ack_num
+    print(f"Payload from Client: {received_payload}")
+    packet_to_send = compile_packet(seq_num, received_seq_num, len(received_payload), "")
     server_socket.sendto(packet_to_send, client_address)
     print(f"Sent message \"{packet_to_send}\" to {client_address}")

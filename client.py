@@ -5,12 +5,12 @@ import socket
 import select
 import time
 
-from utils import compile_packet, get_fields, INIT_PACKET
+from utils import compile_packet, get_fields, INIT_PACKET, PAYLOAD_SIZE
 
 IP = ""
 PORT = 0
-TIMEOUT = 2
-BUFFER_SIZE = 2048
+TIMEOUT = 2.0
+BUFFER_SIZE = 4096
 
 ACK_PACKET = None
 MAX_RETRIES = 3
@@ -50,27 +50,30 @@ def create_socket():
 
     return fd
 
-def handle_send(fd, encoded_message):
-    global start_time
-    retries = 0
-    seq_num = INIT_PACKET
-    received_payload_size = 0
-
-    # TODO Billy: Re-calculate payload size to send (must exclude the first 3 lengths)
-    num_segments = math.ceil(len(encoded_message) / 2048)
+def segment_payload(payload):
+    num_segments = math.ceil(len(payload) / PAYLOAD_SIZE)
+    print("Number of segments:", num_segments)
     # if remainder(num_segments, 2048) != 0:
     #     num_segments += 1
 
     segments = [
-        encoded_message[i * BUFFER_SIZE:(i + 1) * BUFFER_SIZE] for i in range(num_segments)
+        payload[i * PAYLOAD_SIZE:(i + 1) * PAYLOAD_SIZE] for i in range(num_segments)
     ]
-    
-    decoded_segments = [segment.decode("utf-8") for segment in segments]
-    print("Number of segments:", num_segments)
-    print("Segments:", decoded_segments)
+
+    return [segment.decode("utf-8") for segment in segments]
+
+def handle_send(fd, encoded_message):
+    global start_time
+    retries = 0
+    seq_num = INIT_PACKET
+    received_seq_num = INIT_PACKET
+    received_payload_size = 0
+
+    decoded_segments = segment_payload(encoded_message)
+    print("Segments to send:", decoded_segments)
 
     for segment in decoded_segments:
-        packet_to_send = compile_packet(seq_num, received_payload_size, segment)
+        packet_to_send = compile_packet(seq_num, received_seq_num, received_payload_size, segment)
 
         # ready_sockets, _, _  = select.select([fd], [], [])
 
@@ -82,12 +85,12 @@ def handle_send(fd, encoded_message):
             print("Client - Waiting for acknowledgement...")
             # Receive ack
             if fd:
-                print("Client - Receiving ACK")
                 receive_ack(fd)
 
                 # client's seq_num == server's ack_num
-                _, _, seq_num, payload = get_fields(ACK_PACKET)
+                _, received_seq_num, received_ack_num, payload = get_fields(ACK_PACKET)
                 received_payload_size = len(payload)
+                seq_num = received_ack_num
                 break
 
             # Re-transmit packet
@@ -107,7 +110,7 @@ def handle_send(fd, encoded_message):
 
 def start_transmission(fd):
     while True:
-        message = input("Message to send to the server (type 'exit' to quit):\n")
+        message = input("Message to send to the server (type 'exit' or ctrl+D to quit):\n")
         if message.lower() == "exit":
             print("Client - Exiting...")
             return
