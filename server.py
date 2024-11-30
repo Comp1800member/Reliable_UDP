@@ -82,7 +82,7 @@ if __name__ == '__main__':
                 #     set_delay = True
 
                 _, _, seq_num, payload = get_fields(data)
-                print(f"Payload from Client: {payload}")
+                print(f"PAYLOAD FROM CLIENT: {payload}")
                 packet_to_send = compile_packet(seq_num, len(payload), "")
                 server_socket.sendto(packet_to_send, client_addr)
                 print(f"Sent message \"{packet_to_send}\" to {client_addr}")
