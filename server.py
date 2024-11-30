@@ -81,9 +81,9 @@ if __name__ == '__main__':
                 #     time.sleep(5)
                 #     set_delay = True
 
-                _, _, seq_num, payload = get_fields(data)
+                _, received_seq_number, received_ack_num, payload = get_fields(data)
                 print(f"PAYLOAD FROM CLIENT: {payload}")
-                packet_to_send = compile_packet(seq_num, len(payload), "")
+                packet_to_send = compile_packet(received_ack_num, received_seq_number, len(payload), "")
                 server_socket.sendto(packet_to_send, client_addr)
                 print(f"Sent message \"{packet_to_send}\" to {client_addr}")
 

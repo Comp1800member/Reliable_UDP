@@ -35,7 +35,7 @@ def parse_arguments():
     else:
         sys.exit("Error: Invalid IP address.")
 
-    if 65535 < args.target_port < 1:
+    if 1 <= args.target_port <= 65535:
         PORT = args.target_port
     else:
         sys.exit("Error: Invalid port number. (1 <= PORT <= 65535)")
