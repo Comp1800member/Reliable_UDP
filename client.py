@@ -2,6 +2,7 @@ import argparse
 import math
 import sys
 import socket
+import ipaddress
 
 from utils import compile_packet, get_fields, INIT_PACKET, PAYLOAD_SIZE
 
@@ -29,8 +30,15 @@ def parse_arguments():
         parser.print_help()
         sys.exit()
 
-    IP = args.target_ip
-    PORT = args.target_port
+    if ipaddress.ip_address(args.target_ip):
+        IP = args.target_ip
+    else:
+        sys.exit("Error: Invalid IP address.")
+
+    if 65535 < args.target_port < 1:
+        PORT = args.target_port
+    else:
+        sys.exit("Error: Invalid port number. (1 <= PORT <= 65535)")
 
     if args.timeout is not None:
         TIMEOUT = args.timeout
@@ -41,12 +49,11 @@ def create_socket():
         fd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     except socket.error as e:
-        print("Client - Error creating socket: {}".format(e))
-        sys.exit()
+        sys.exit("Client - Error creating socket: {}".format(e))
 
     return fd
 
-def segment_payload(payload):
+def segment_packet(payload):
     num_segments = math.ceil(len(payload) / PAYLOAD_SIZE)
     print("Number of segments:", num_segments)
 
@@ -72,6 +79,8 @@ def send_packet(fd, encoded_packet):
         fd.settimeout(TIMEOUT)
     except socket.error as e:
         print(f"Client - Error sending packet: {format(e)}. Try again.")
+        fd.close()
+        sys.exit()
 
 def is_duplicated_packet(received_packet):
     global ACK_PACKET
@@ -101,6 +110,7 @@ def receive_ack(fd):
 
     except socket.error as e:
         print(f"Client - Error receiving ACK: {format(e)}. Try again.")
+        fd.close()
         sys.exit()
 
     return True
@@ -111,7 +121,7 @@ def handle_send(fd, encoded_message):
     received_seq_num = INIT_PACKET
     received_payload_size = 0
 
-    decoded_segments = segment_payload(encoded_message)
+    decoded_segments = segment_packet(encoded_message)
     print("Segments to send:", decoded_segments)
 
     for segment in decoded_segments:
@@ -132,6 +142,7 @@ def handle_send(fd, encoded_message):
 
         if retries >= MAX_RETRIES:
             print("Client - Maximum retries exceeded. Try again.")
+            fd.close()
             sys.exit()
 
         _, received_seq_num, received_ack_num, payload = get_fields(ACK_PACKET)

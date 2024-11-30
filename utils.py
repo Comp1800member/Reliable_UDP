@@ -4,11 +4,6 @@ INIT_PACKET = 1
 PACKET_SIZE = 1024
 PAYLOAD_SIZE = PACKET_SIZE - 4 * 3 - 3
 
-# def generate_sequence_number(received_ack = INIT_PACKET):
-#     # Return 4-byte random number
-#     # return random.getrandbits(32)
-#     return received_ack
-
 def calculate_acknowledgement_number(received_seq, received_payload_size):
     return received_seq + received_payload_size
 
@@ -21,10 +16,9 @@ def calculate_packet_size(payload_size):
 def get_payload_size(payload):
     return len(payload)
 
-def compile_packet(seq_num = INIT_PACKET, received_seq_num = INIT_PACKET, received_payload_size = 0, payload = ""):
+def compile_packet(seq_num, received_seq_num, received_payload_size, payload):
     payload_size = get_payload_size(payload)
     print(f"To send payload size: {payload_size}")
-    # seq_num = generate_sequence_number(received_ack)
     ack_num = calculate_acknowledgement_number(received_seq_num, received_payload_size)
     packet_size = calculate_packet_size(payload_size)
 
