@@ -32,6 +32,28 @@ class proxy_server:
             except ValueError:
                 print("Please enter an integer")
 
+def handle_port(port):
+    if port < 1 or port > 65535:
+        rprint('[red]Error: Port must be between 1 and 65535[red]')
+        exit(-1)
+
+def handle_ip(ip):
+    try:
+        ipaddress.ip_address(ip)
+    except ValueError:
+        rprint("[red]Error: Invalid IP address[red]")
+        exit(-1)
+
+def handle_drop(value):
+    if value > 100 or value < 0:
+        rprint('[red]Error: Drop percentage must be between 0 and 100[red]')
+        exit(-1)
+
+def handle_delay(value):
+    if value > 100 or value < 0:
+        rprint('[red]Error: Delay percentage must be between 0 and 100[red]')
+        exit(-1)
+
 def handle_arguments(args):
     listen_ip = args.listen_ip
     listen_port = args.listen_port
@@ -43,41 +65,21 @@ def handle_arguments(args):
     server_delay = args.server_delay
 
     #--listen port + ip
-    if listen_port < 1 or listen_port > 65535:
-        rprint('[red]Error: Port must be between 1 and 65535[red]')
-        exit(-1)
-    try:
-        ipaddress.ip_address(listen_ip)
-    except ValueError:
-        rprint("[red]Error: Invalid listen IP address[red]")
-        exit(-1)
+    handle_port(listen_port)
+    handle_ip(listen_ip)
 
     #target port and ip
-    if target_port < 1 or target_port > 65535:
-        rprint('[red]Error: Port must be between 1 and 65535[red]')
-        exit(-1)
-    try:
-        ipaddress.ip_address(target_ip)
-    except ValueError:
-        rprint("[red]Error: Invalid target IP address[red]")
-        exit(-1)
+    handle_port(target_port)
+    handle_ip(target_ip)
 
     #drops
-    if client_drop > 100 or client_drop < 0:
-        rprint('[red]Error: Client drop percentage must be between 0 and 100[red]')
-        exit(-1)
-    if server_drop > 100 or server_drop < 0:
-        rprint('[red]Error: Server drop percentage must be between 0 and 100[red]')
-        exit(-1)
+    handle_drop(client_drop)
+    handle_drop(server_drop)
 
 
     #delays
-    if client_delay > 100 or client_delay < 0:
-        rprint('[red]Error: Client delay must be between 0 and 100[red]')
-        exit(-1)
-    if server_delay > 100 or server_delay < 0:
-        rprint('[red]Error: Server delay must be between 0 and 100[red]')
-        exit(-1)
+    handle_delay(client_delay)
+    handle_delay(server_delay)
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
