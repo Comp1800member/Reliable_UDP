@@ -20,6 +20,7 @@ class proxy_server:
             try:
                 self.client_drop = int(input("Please enter a new client drop value "))
                 self.server_drop = int(input("Please enter a new server drop value "))
+                handle_drop(server_drop)
                 self.client_delay = int(input("Please enter a new client delay value "))
                 self.server_delay = int(input("Please enter a new server delay value "))
                 self.client_delay_time = int(input("Please enter a new client delay timevalue "))
@@ -44,12 +45,12 @@ def handle_ip(ip):
         rprint("[red]Error: Invalid IP address[red]")
         exit(-1)
 
-def handle_drop(value):
+def handle_drop_value(value):
     if value > 100 or value < 0:
         rprint('[red]Error: Drop percentage must be between 0 and 100[red]')
         exit(-1)
 
-def handle_delay(value):
+def handle_delay_value(value):
     if value > 100 or value < 0:
         rprint('[red]Error: Delay percentage must be between 0 and 100[red]')
         exit(-1)
@@ -73,13 +74,13 @@ def handle_arguments(args):
     handle_ip(target_ip)
 
     #drops
-    handle_drop(client_drop)
-    handle_drop(server_drop)
+    handle_drop_value(client_drop)
+    handle_drop_value(server_drop)
 
 
     #delays
-    handle_delay(client_delay)
-    handle_delay(server_delay)
+    handle_delay_value(client_delay)
+    handle_delay_value(server_delay)
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
