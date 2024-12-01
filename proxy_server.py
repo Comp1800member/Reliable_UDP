@@ -1,9 +1,36 @@
 import socket, select, argparse, ipaddress
 import sys
 import random
+import threading
 import time
 from rich import print as rprint
 from server import bind_socket, create_socket, close_socket, receive_data
+
+class proxy_server:
+    def __init__(self, arguments):
+        self.client_drop = arguments.client_drop
+        self.server_drop = arguments.server_drop
+        self.client_delay = arguments.client_delay
+        self.server_delay = arguments.server_delay
+        self.client_delay_time = arguments.client_delay_time
+        self.server_delay_time = arguments.server_delay_time
+
+    def update_drop_delay(self):
+        while True:
+            try:
+                self.client_drop = int(input("Please enter a new client drop value "))
+                self.server_drop = int(input("Please enter a new server drop value "))
+                self.client_delay = int(input("Please enter a new client delay value "))
+                self.server_delay = int(input("Please enter a new server delay value "))
+                self.client_delay_time = int(input("Please enter a new client delay timevalue "))
+                self.server_delay_time = int(input("Please enter a new server delay time value "))
+                loop = int(input("Would you like to continue entering values? 1 for yes 0 for no"))
+                if loop == 0:
+                    break
+            except SystemExit:
+                print("Invalid input format")
+            except ValueError:
+                print("Please enter an integer")
 
 def handle_arguments(args):
     listen_ip = args.listen_ip
@@ -142,17 +169,19 @@ if __name__ == '__main__':
     client_delay_time = handle_value_or_range(args.client_delay_time)
     server_delay_time = handle_value_or_range(args.server_delay_time)
 
+    proxy = proxy_server(args)
+
     print("[PROXY SERVER CONFIGURATIONS]")
     print(f"Listen IP Address: {listen_ip}")
     print(f"Listen Port: {listen_port}")
     print(f"Target IP Address: {target_ip}")
     print(f"Target Port: {target_port}")
-    print(f"Client Drop Percentage: {client_drop}")
-    print(f"Client Delay Percentage: {client_delay}")
-    print(f"Client Delay Time (milliseconds): {client_delay_time}")
-    print(f"Server Drop Percentage: {server_drop}")
-    print(f"Server Delay Percentage: {server_delay}")
-    print(f"Server Delay Time (milliseconds): {server_delay_time}")
+    print(f"Client Drop Percentage: {proxy.client_drop}")
+    print(f"Client Delay Percentage: {proxy.client_delay}")
+    print(f"Client Delay Time (milliseconds): {proxy.client_delay_time}")
+    print(f"Server Drop Percentage: {proxy.server_drop}")
+    print(f"Server Delay Percentage: {proxy.server_delay}")
+    print(f"Server Delay Time (milliseconds): {proxy.server_delay_time}")
     print("=============================================")
 
     client_fd = create_socket()
@@ -161,6 +190,7 @@ if __name__ == '__main__':
     bind_socket(client_fd, listen_ip, listen_port)
 
     try:
+        threading.Thread(target=proxy.update_drop_delay, daemon=True).start()
         while True:
             ready, _, _ = select.select([client_fd, server_fd], [], [])
 
@@ -171,11 +201,11 @@ if __name__ == '__main__':
                     print(f"\tReceived '{client_packet.decode()}")
 
                     # Drop
-                    if handle_drop(client_drop):
+                    if handle_drop(proxy.client_drop):
                         continue
 
                     # Delay
-                    handle_delay(client_delay_time, client_delay_time)
+                    handle_delay(proxy.client_delay, proxy.client_delay_time)
 
                     # Forward packet from client to server
                     send_packet(server_fd, (target_ip, target_port), client_packet)
@@ -192,11 +222,11 @@ if __name__ == '__main__':
 
                     if client_addr:
                         # Drop
-                        if handle_drop(server_drop):
+                        if handle_drop(proxy.server_drop):
                             continue
 
                         # Delay
-                        handle_delay(server_delay, server_delay_time)
+                        handle_delay(proxy.server_delay, proxy.server_delay_time)
 
                         # Forward packet from server to client
                         send_packet(client_fd, client_addr, server_packet)
