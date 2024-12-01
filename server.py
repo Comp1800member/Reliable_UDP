@@ -1,9 +1,7 @@
-import select
-import socket
-import os
-import argparse
-import threading
-import ipaddress
+import socket, select, os, argparse, threading, ipaddress
+import time
+import random
+from utils import compile_packet, get_fields, INIT_PACKET
 
 def handle_arguments(args):
     ip = args.listen_ip
@@ -15,6 +13,7 @@ def handle_arguments(args):
     except ValueError:
         print("Invalid IP address")
 
+
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--listen-ip", type=str, help="IP address of the server")
@@ -24,9 +23,11 @@ def parse_arguments():
     handle_arguments(args)
     return args
 
+
 def create_socket():
-    #note to self, changed to DGRAM for UDP
+    # note to self, changed to DGRAM for UDP
     return socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
 
 def bind_socket(server_socket, ip_addr, port):
     try:
@@ -35,12 +36,14 @@ def bind_socket(server_socket, ip_addr, port):
         print(f"Binding failed: {e}")
         exit(-1)
 
+
 def close_socket(sock_to_close):
     try:
         sock_to_close.close()
     except OSError as e:
         print(e)
         exit(-1)
+
 
 def receive_data(server_socket):
     try:
@@ -50,36 +53,44 @@ def receive_data(server_socket):
         exit(-1)
     return data, client_address
 
+
 def send_ack():
     pass
 
 
-if __name__ == "__main__":
+set_delay = False
+seq_num = INIT_PACKET
+
+if __name__ == '__main__':
+
+
     args = parse_arguments()
     port = args.listen_port
     ip_addr = args.listen_ip
-    socket = create_socket()
+    server_socket = create_socket()
 
-    bind_socket(socket, ip_addr, port)
+    bind_socket(server_socket, ip_addr, port)
 
-    print(f"Server listening on {port}")
-    timeout = 2
     try:
         while True:
-            ready, _, _ = select.select([socket], [], [], 2)
-            if not ready:
-                print(f"Nothing received in last {timeout} seconds")
-            #currently only socket we are listening for is the server's socket,
-            #so not really handling anything else, just getting data and stuff for that.
+            ready, _, _ = select.select([server_socket], [], [])
             for sock in ready:
-                    data, client_addr = receive_data(socket)
-                    print(f"Received '{data.decode()} from {client_addr}")
+                data, client_addr = receive_data(sock)  # Buffer size of 1024 bytes
+                print(f"Received '{data.decode()} from {client_addr}")
 
-                    response = f"Hello, {data.decode()}"
-                    socket.sendto(response.encode(), client_addr)
+                # Test: delay scenario
+                if not set_delay:
+                    time.sleep(5)
+                    set_delay = True
+
+                _, received_seq_number, received_ack_num, payload = get_fields(data)
+                print(f"PAYLOAD FROM CLIENT: {payload}")
+                packet_to_send = compile_packet(received_ack_num, received_seq_number, len(payload), "")
+                server_socket.sendto(packet_to_send, client_addr)
+                print(f"Sent message \"{packet_to_send}\" to {client_addr}")
 
     except KeyboardInterrupt:
         print("\nKeyboard Interrupt: Server shutting down.")
         exit(-1)
     finally:
-        close_socket(socket)
+        close_socket(server_socket)
