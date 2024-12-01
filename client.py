@@ -10,6 +10,7 @@ from utils import compile_packet, get_fields, INIT_PACKET, PAYLOAD_SIZE
 IP = "0.0.0.0"
 PORT = 5000
 TIMEOUT = 2.0
+MAX_TIMEOUT = 10.0
 BUFFER_SIZE = 4096
 
 ACK_PACKET = None
@@ -33,14 +34,19 @@ def parse_arguments():
     if ipaddress.ip_address(args.target_ip):
         IP = args.target_ip
     else:
-        sys.exit("Error: Invalid IP address.")
+        rprint("[red]Error: Invalid IP address.[red]")
+        sys.exit(-1)
 
     if 1 <= args.target_port <= 65535:
         PORT = args.target_port
     else:
-        sys.exit("Error: Invalid port number. (1 <= PORT <= 65535)")
+        rprint("[red]Error: Invalid port number. (1 <= PORT <= 65535)[red]")
+        sys.exit(-1)
 
     if args.timeout is not None:
+        if args.timeout < 0 or args.timeout > MAX_TIMEOUT:
+            rprint("[red]Error: Invalid timeout value. (0 <= TIMEOUT <= 10)[red]")
+            sys.exit(-1)
         TIMEOUT = args.timeout
 
     print("[CLIENT CONFIGURATIONS]")
@@ -156,7 +162,7 @@ def handle_send(fd, encoded_message):
         if retries >= MAX_RETRIES:
             rprint("[red]Maximum retries exceeded. Try again.[red]")
             fd.close()
-            sys.exit()
+            sys.exit(-1)
 
         _, received_seq_num, received_ack_num, payload = get_fields(ACK_PACKET)
         received_payload_size = len(payload)
