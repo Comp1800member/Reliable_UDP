@@ -4,17 +4,18 @@ import sys
 import socket
 import ipaddress
 import random
-
+from rich import print as rprint
 from utils import compile_packet, get_fields, INIT_PACKET, PAYLOAD_SIZE
 
 # TODO - Billy: Clean up and document
 
-IP = ""
-PORT = 0
+IP = "0.0.0.0"
+PORT = 5000
 TIMEOUT = 2.0
 BUFFER_SIZE = 4096
 
 ACK_PACKET = None
+RECV_PACKET = None
 MAX_RETRIES = 3
 
 def parse_arguments():
@@ -44,19 +45,26 @@ def parse_arguments():
     if args.timeout is not None:
         TIMEOUT = args.timeout
 
+    print("[CLIENT CONFIGURATIONS]")
+    print(f"IP Address: {IP}")
+    print(f"Port: {PORT}")
+    print(f"Timeout (seconds): {TIMEOUT}")
+    print("=============================================")
+
+
 def create_socket():
-    print("Client - Creating socket...")
+    rprint("Creating socket...")
     try:
         fd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     except socket.error as e:
-        sys.exit("Client - Error creating socket: {}".format(e))
+        rprint("[red]Error creating socket: {}[red]".format(e))
+        sys.exit(-1)
 
     return fd
 
 def segment_packet(payload):
     num_segments = math.ceil(len(payload) / PAYLOAD_SIZE)
-    print("Number of segments:", num_segments)
 
     segments = [
         payload[i * PAYLOAD_SIZE:(i + 1) * PAYLOAD_SIZE] for i in range(num_segments)
@@ -66,20 +74,21 @@ def segment_packet(payload):
 
 def start_transmission(fd):
     while True:
-        message = input("Message to send to the server (type 'exit' or ctrl+D to quit):\n")
+        rprint("[green bold]Message to send to the server (type 'exit' or ctrl+D to quit):[green bold]")
+        message = input()
         if message.lower() == "exit":
-            print("Client - Exiting...")
+            rprint("[yellow]Exiting...[yellow]")
             return
-
+        rprint("=============================================")
         handle_send(fd, message.encode())
 
 def send_packet(fd, encoded_packet):
     try:
-        print(f"Client - Sending packet {encoded_packet}. Starting timer...")
+        rprint(f"Sending packet {encoded_packet}.")
         fd.sendto(encoded_packet, (IP, PORT))
         fd.settimeout(TIMEOUT)
     except socket.error as e:
-        print(f"Client - Error sending packet: {format(e)}. Try again.")
+        rprint(f"[red]Error sending packet: {format(e)}. Try again.[red]")
         fd.close()
         sys.exit()
 
@@ -88,29 +97,35 @@ def is_duplicated_packet(received_packet):
     return ACK_PACKET == received_packet
 
 def receive_ack(fd):
-    global ACK_PACKET
-    received_packet = None
+    global ACK_PACKET, RECV_PACKET
     try:
         while True:
-            print("Client - Waiting for acknowledgement...")
-            received_packet, server_address = fd.recvfrom(BUFFER_SIZE)
+            rprint("Waiting for acknowledgement...")
+            RECV_PACKET, server_address = fd.recvfrom(BUFFER_SIZE)
+
+            rprint(f"Received packet: {RECV_PACKET}")
 
             # Handling duplicated ACK
-            if not is_duplicated_packet(received_packet):
-                print("Client - New acknowledgement.")
-                ACK_PACKET = received_packet
+            if not is_duplicated_packet(RECV_PACKET):
+                rprint("[green bold]New acknowledgement found:[green bold]")
+                packet_size, seq_num, ack_num, payload = get_fields(RECV_PACKET)
+                print(f"\tPacket size: {packet_size}")
+                print(f"\tSequence number: {seq_num}")
+                print(f"\tAcknowledgement number: {ack_num}")
+                print(f"\tPayload: {payload if not payload == "" else "N/A"}")
+                ACK_PACKET = RECV_PACKET
+                rprint("=============================================")
                 break
 
-            print("Client - Duplicated acknowledgement.")
-            print(f"Client - Received packet {received_packet}")
+            rprint("[yellow]Duplicated acknowledgement found.[yellow]")
 
     except socket.timeout as e:
-        print("Client - Received no acknowledgements, timed out.")
-        ACK_PACKET = received_packet
+        rprint("[red]Received no acknowledgements, timed out.[red]")
+        ACK_PACKET = RECV_PACKET
         return False
 
     except socket.error as e:
-        print(f"Client - Error receiving ACK: {format(e)}. Try again.")
+        rprint(f"[red]Error receiving ACK: {format(e)}. Try again.[red]")
         fd.close()
         sys.exit()
 
@@ -123,7 +138,6 @@ def handle_send(fd, encoded_message):
     received_payload_size = 0
 
     decoded_segments = segment_packet(encoded_message)
-    print("Segments to send:", decoded_segments)
 
     for segment in decoded_segments:
         packet_to_send = compile_packet(seq_num, received_seq_num, received_payload_size, segment)
@@ -136,13 +150,13 @@ def handle_send(fd, encoded_message):
             # Re-transmit packet
             if not receive_ack(fd):
                 retries += 1
-                print(f"Client - Resending packet. Retry #{retries}")
+                rprint(f"[yellow]Resending packet. Retry #{retries}[yellow]")
                 send_packet(fd, packet_to_send)
             else:
                 break
 
         if retries >= MAX_RETRIES:
-            print("Client - Maximum retries exceeded. Try again.")
+            rprint("[red]Maximum retries exceeded. Try again.[red]")
             fd.close()
             sys.exit()
 
@@ -157,5 +171,5 @@ if __name__ == "__main__":
     try:
         start_transmission(client_socket)
     except KeyboardInterrupt:
-        print("Client - Keyboard interrupt. Closing")
+        rprint("[red]Keyboard interrupt. Closing[red]")
         client_socket.close()

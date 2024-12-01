@@ -1,17 +1,18 @@
-import socket, select, os, argparse, threading, ipaddress
-import time
-import random
+import socket, select, argparse, ipaddress, sys
+from rich import print as rprint
+
 from utils import compile_packet, get_fields, INIT_PACKET
 
 def handle_arguments(args):
     ip = args.listen_ip
     if args.listen_port < 1 or args.listen_port > 65535:
-        print('port must be between 1 and 65535')
+        rprint('[red]Error: Port must be between 1 and 65535[red]')
         exit(-1)
     try:
         ipaddress.ip_address(ip)
     except ValueError:
-        print("Invalid IP address")
+        rprint("[red]Error: Invalid IP address[red]")
+        exit(-1)
 
 
 def parse_arguments():
@@ -19,21 +20,25 @@ def parse_arguments():
     parser.add_argument("--listen-ip", type=str, help="IP address of the server")
     parser.add_argument("--listen-port", type=int, help="The port number")
     args = parser.parse_args()
-    print(args)
     handle_arguments(args)
     return args
 
 
 def create_socket():
     # note to self, changed to DGRAM for UDP
-    return socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        fd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    except socket.error as e:
+        rprint(f"[red]Failed to create socket: {e}[red]")
+        exit(-1)
+    return fd
 
 
 def bind_socket(server_socket, ip_addr, port):
     try:
         server_socket.bind((ip_addr, port))
     except OSError as e:
-        print(f"Binding failed: {e}")
+        rprint(f"[red]Binding failed: {e}[red]")
         exit(-1)
 
 
@@ -41,7 +46,7 @@ def close_socket(sock_to_close):
     try:
         sock_to_close.close()
     except OSError as e:
-        print(e)
+        rprint(f"[red]Error: {e}[red]")
         exit(-1)
 
 
@@ -49,7 +54,7 @@ def receive_data(server_socket):
     try:
         data, client_address = server_socket.recvfrom(1024)
     except Exception as e:
-        print(e)
+        rprint(f"[red]Error: {e}[red]")
         exit(-1)
     return data, client_address
 
@@ -67,6 +72,10 @@ if __name__ == '__main__':
     args = parse_arguments()
     port = args.listen_port
     ip_addr = args.listen_ip
+    print("[SERVER CONFIGURATIONS]")
+    print(f"IP Address: {ip_addr}")
+    print(f"Port: {port}")
+    print("=============================================")
     server_socket = create_socket()
 
     bind_socket(server_socket, ip_addr, port)
@@ -76,20 +85,28 @@ if __name__ == '__main__':
             ready, _, _ = select.select([server_socket], [], [])
             for sock in ready:
                 data, client_addr = receive_data(sock)  # Buffer size of 1024 bytes
-                print(f"Received '{data.decode()} from {client_addr}")
+                rprint(f"Received packet: {data}")
 
                 # Test: delay scenario
                 # if not set_delay:
                 #     time.sleep(5)
                 #     set_delay = True
 
-                _, received_seq_number, received_ack_num, payload = get_fields(data)
-                print(f"PAYLOAD FROM CLIENT: {payload}")
+                received_packet_size, received_seq_number, received_ack_num, payload = get_fields(data)
+                rprint("[green bold]Client packet found:[green bold]")
+                print(f"\tPacket size: {received_packet_size}")
+                print(f"\tSequence number: {received_seq_number}")
+                print(f"\tAcknowledgement number: {received_ack_num}")
+                print(f"\tPayload: {payload if not payload == "" else "N/A"}")
+                print("=============================================")
+                print("[DISPLAY CLIENT PAYLOAD]")
+                rprint(f"[green]{payload}[green]")
                 packet_to_send = compile_packet(received_ack_num, received_seq_number, len(payload), "")
                 server_socket.sendto(packet_to_send, client_addr)
-                print(f"Sent message \"{packet_to_send}\" to {client_addr}")
+                rprint(f"\nSending packet {packet_to_send}")
+                print("=============================================")
 
     except KeyboardInterrupt:
-        print("\nKeyboard Interrupt: Server shutting down.")
+        rprint("[red]Keyboard Interrupt: Server shutting down.[red]")
         close_socket(server_socket)
         exit(-1)
