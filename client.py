@@ -7,6 +7,8 @@ import random
 
 from utils import compile_packet, get_fields, INIT_PACKET, PAYLOAD_SIZE
 
+# TODO - Billy: Clean up and document
+
 IP = ""
 PORT = 0
 TIMEOUT = 2.0
@@ -14,8 +16,6 @@ BUFFER_SIZE = 4096
 
 ACK_PACKET = None
 MAX_RETRIES = 3
-
-# TODO - Billy: Make client handle packet max size and segmentation
 
 def parse_arguments():
     global IP, PORT, TIMEOUT
@@ -153,6 +153,9 @@ def handle_send(fd, encoded_message):
 if __name__ == "__main__":
     parse_arguments()
     client_socket = create_socket()
-    start_transmission(client_socket)
-    print("Client - Closing socket")
-    client_socket.close()
+
+    try:
+        start_transmission(client_socket)
+    except KeyboardInterrupt:
+        print("Client - Keyboard interrupt. Closing")
+        client_socket.close()

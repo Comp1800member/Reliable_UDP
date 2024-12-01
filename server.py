@@ -91,6 +91,5 @@ if __name__ == '__main__':
 
     except KeyboardInterrupt:
         print("\nKeyboard Interrupt: Server shutting down.")
-        exit(-1)
-    finally:
         close_socket(server_socket)
+        exit(-1)

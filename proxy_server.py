@@ -5,6 +5,8 @@ import time
 
 from server import bind_socket, create_socket, close_socket, receive_data
 
+# TODO: Clean up
+
 def handle_arguments(args):
     listen_ip = args.listen_ip
     listen_port = args.listen_port
@@ -62,31 +64,27 @@ def parse_arguments():
     parser.add_argument("--server-drop", type=int, default=0, help="the percent chance to drop packets from the server")
     parser.add_argument("--client-delay", type=int, default=0, help="the percent chance to delay packets from the client")
     parser.add_argument("--server-delay", type=int, default=0, help="the percent chance to delay packets from the server")
-    parser.add_argument("--client-delay-time", type=str, help="the delay time in milliseconds for packets from the client")
-    parser.add_argument("--server-delay-time", type=str, help="the delay time in milliseconds for packets from the server")
+    parser.add_argument("--client-delay-time", type=str, default="0", help="the delay time in milliseconds for packets from the client")
+    parser.add_argument("--server-delay-time", type=str, default="0", help="the delay time in milliseconds for packets from the server")
 
     args = parser.parse_args()
     print(args)
     handle_arguments(args)
     return args
 
-def send_packet(fd, ip, port, packet):
+def send_packet(fd, address, packet):
     try:
-        fd.sendto(packet, (ip, port))
+        print(f"Proxy - Sending packet to {(address[0], address[1])}")
+        fd.sendto(packet, address)
     except socket.error as e:
         fd.close()
         sys.exit("Proxy - Error sending packet to server: {}".format(e))
 
-#
-def handle_packet(fd, drop_percentage, delay_percentage, delay_time, ip, port, packet):
+def handle_drop(drop_percentage):
     random_num = random.randint(1, 100)
-    if random_num <= drop_percentage != 0:
-        print("Proxy - No dropping, delaying if anys...")
-        # TODO - delay here if no drop
-        # if delay then timeout
-        handle_delay(delay_percentage, delay_time)
-        # After delay, send packet
-        send_packet(fd, ip, port, packet)
+    print(f"Random number for dropping {random_num}")
+    if random_num <= drop_percentage or drop_percentage == 0:
+        print("Proxy - No dropping, delaying if any...")
         return False
     else:
         print("Proxy - Dropping packet, returning...")
@@ -94,9 +92,13 @@ def handle_packet(fd, drop_percentage, delay_percentage, delay_time, ip, port, p
 
 def handle_delay(delay_percentage, delay_time):
     random_num = random.randint(1, 100)
+    # print(f"Random number for delaying {random_num}")
     if random_num >= delay_percentage != 0:
         print(f"Proxy - Delaying packet by {delay_time} milliseconds")
         time.sleep(delay_time / 1000)
+    else:
+        print(f"Proxy - No delaying")
+
 
 def handle_value_or_range(delay):
     if delay.isdigit():
@@ -134,39 +136,78 @@ if __name__ == '__main__':
     listen_port = args.listen_port
     target_ip = args.target_ip
     target_port = args.target_port
-    client_drop = args.client_drop
-    client_delay = args.client_delay
-    server_drop = args.server_drop
-    server_delay = args.server_delay
-    client_delay_time = handle_value_or_range(args.client_delay_time)
-    server_delay_time = handle_value_or_range(args.server_delay_time)
+    # client_drop = args.client_drop
+    # client_delay = args.client_delay
+    # server_drop = args.server_drop
+    # server_delay = args.server_delay
+    # client_delay_time = handle_value_or_range(args.client_delay_time)
+    # server_delay_time = handle_value_or_range(args.server_delay_time)
 
-    print(isinstance(client_delay_time, list))
+    # TODO: Configurable server but it's a one time thing
+    client_drop = input(
+        "New client drop percentage (0 to 100, or press enter to use pre-defined or default value):\n") or args.client_drop
+    client_delay = input(
+        "New client delay percentage (0 to 100, or press enter to use pre-defined or default value):\n") or args.client_delay
+    server_drop = input(
+        "New server drop percentage (0 to 100, or press enter to use pre-defined or default value):\n") or args.server_drop
+    server_delay = input(
+        "New server delay percentage (0 to 100, or press enter to use pre-defined or default value):\n") or args.server_delay
+    client_delay_time = handle_value_or_range(input(
+        "New client delay time (in milliseconds, or press enter to use pre-defined or default value):\n") or args.client_delay_time)
+    server_delay_time = handle_value_or_range(input(
+        "New server delay time (in milliseconds, or press enter to use pre-defined or default value):\n") or args.server_delay_time)
 
+    # print(isinstance(client_delay_time, list))
     client_fd = create_socket()
-    bind_socket(client_fd, listen_ip, listen_port)
-
     server_fd = create_socket()
+    routing_table = {}
+    bind_socket(client_fd, listen_ip, listen_port)
 
     try:
         while True:
-            ready, _, _ = select.select([client_fd], [], [])
+            ready, _, _ = select.select([client_fd, server_fd], [], [])
+
             for sock in ready:
-                data, client_addr = receive_data(sock)  # Buffer size of 1024 bytes
-                print(f"Received '{data.decode()} from {client_addr}")
+                if sock is client_fd:
+                    print(f"Client sock ready")
+                    client_packet, client_addr = receive_data(client_fd)  # Buffer size of 1024 bytes
+                    print(f"Received '{client_packet.decode()} from {client_addr}")
 
-                # TODO: Handle drop and/or delay here
-                # Drop and/or delay from client to server
-                if handle_packet(server_fd, client_drop, client_delay, client_delay_time, target_ip, target_port, data):
-                    continue
+                    # Drop
+                    if handle_drop(client_drop):
+                        continue
 
-                # Drop or delay from server to client
-                if handle_packet(client_fd, server_drop, server_delay, server_delay_time, listen_ip, listen_port, data):
-                    continue
+                    # Delay
+                    handle_delay(client_delay_time, client_delay_time)
+                    # Forward packet from client to server
+                    send_packet(server_fd, (target_ip, target_port), client_packet)
 
-    except KeyboardInterrupt:
-        print("\nKeyboard Interrupt: Proxy Server shutting down.")
-        exit(-1)
-    finally:
+                    routing_table[(target_ip, target_port)] = client_addr
+
+                if sock is server_fd:
+                    print(f"Server sock ready")
+                    server_packet, server_addr = receive_data(server_fd)
+                    print(f"Received '{server_packet.decode()} from {server_addr}")
+
+                    client_addr = routing_table.get((target_ip, target_port))
+
+                    if client_addr:
+                        # Drop
+                        if handle_drop(server_drop):
+                            continue
+                        # Delay
+                        handle_delay(server_delay, server_delay_time)
+                        # Forward packet from server to client
+                        send_packet(client_fd, client_addr, server_packet)
+
+    except socket.error as e:
+        print(f"Proxy - Socket error: {e}. Closing...")
         close_socket(client_fd)
         close_socket(server_fd)
+        exit(-1)
+
+    except KeyboardInterrupt:
+        print("Proxy - Keyboard interrupt. Closing...")
+        close_socket(client_fd)
+        close_socket(server_fd)
+        exit(-1)
