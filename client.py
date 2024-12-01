@@ -156,16 +156,3 @@ if __name__ == "__main__":
     start_transmission(client_socket)
     print("Client - Closing socket")
     client_socket.close()
-
-    # Sample: How to use utils
-    # message = "Hello World"
-    # Compiling a packet
-    # packet = compile_packet(1, 1, 0, message)
-    # print(f"Packet: {packet}")
-
-    # Getting fields from a packet
-    # BUFFER_SIZE, seq_num, ack_num, payload = get_fields(packet)
-    # print(f"Packet size: {BUFFER_SIZE}")
-    # print(f"Sequence number: {seq_num}")
-    # print(f"Ack number: {ack_num}")
-    # print(f"Payload: {payload}")
