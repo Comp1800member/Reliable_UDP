@@ -3,6 +3,7 @@ import math
 import sys
 import socket
 import ipaddress
+import random
 
 from utils import compile_packet, get_fields, INIT_PACKET, PAYLOAD_SIZE
 
@@ -117,7 +118,7 @@ def receive_ack(fd):
 
 def handle_send(fd, encoded_message):
     retries = 0
-    seq_num = INIT_PACKET
+    seq_num = random.randint(1, 9999 - BUFFER_SIZE) # Leave extra rooms in case of segmentation
     received_seq_num = INIT_PACKET
     received_payload_size = 0
 

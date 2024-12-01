@@ -1,4 +1,6 @@
 import socket, select, os, argparse, threading, ipaddress
+import time
+import random
 from utils import compile_packet, get_fields, INIT_PACKET
 
 def handle_arguments(args):
@@ -77,9 +79,9 @@ if __name__ == '__main__':
                 print(f"Received '{data.decode()} from {client_addr}")
 
                 # Test: delay scenario
-                # if not set_delay:
-                #     time.sleep(5)
-                #     set_delay = True
+                if not set_delay:
+                    time.sleep(5)
+                    set_delay = True
 
                 _, received_seq_number, received_ack_num, payload = get_fields(data)
                 print(f"PAYLOAD FROM CLIENT: {payload}")
