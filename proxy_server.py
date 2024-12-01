@@ -5,8 +5,6 @@ import time
 from rich import print as rprint
 from server import bind_socket, create_socket, close_socket, receive_data
 
-# TODO: Clean up
-
 def handle_arguments(args):
     listen_ip = args.listen_ip
     listen_port = args.listen_port

@@ -7,8 +7,6 @@ import random
 from rich import print as rprint
 from utils import compile_packet, get_fields, INIT_PACKET, PAYLOAD_SIZE
 
-# TODO - Billy: Clean up and document
-
 IP = "0.0.0.0"
 PORT = 5000
 TIMEOUT = 2.0
