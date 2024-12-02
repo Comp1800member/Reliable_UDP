@@ -5,7 +5,7 @@ import socket
 import ipaddress
 import random
 from rich import print as rprint
-from utils import compile_packet, get_fields, INIT_PACKET, PAYLOAD_SIZE
+from utils import graphing, compile_packet, get_fields, INIT_PACKET, PAYLOAD_SIZE
 
 IP = "0.0.0.0"
 PORT = 5000
@@ -16,6 +16,8 @@ BUFFER_SIZE = 4096
 ACK_PACKET = None
 RECV_PACKET = None
 MAX_RETRIES = 3
+
+client_graphing = graphing()
 
 def parse_arguments():
     global IP, PORT, TIMEOUT
@@ -89,6 +91,7 @@ def start_transmission(fd):
 def send_packet(fd, encoded_packet):
     try:
         rprint(f"Sending packet {encoded_packet}.")
+        client_graphing.log_packet_sent("client")
         fd.sendto(encoded_packet, (IP, PORT))
         fd.settimeout(TIMEOUT)
     except socket.error as e:
@@ -106,8 +109,8 @@ def receive_ack(fd):
         while True:
             rprint("Waiting for acknowledgement...")
             RECV_PACKET, server_address = fd.recvfrom(BUFFER_SIZE)
-
             rprint(f"Received packet: {RECV_PACKET}")
+            client_graphing.log_packet_received("client")
 
             # Handling duplicated ACK
             if not is_duplicated_packet(RECV_PACKET):
@@ -119,6 +122,7 @@ def receive_ack(fd):
                 print(f"\tPayload: {payload if not payload == "" else "N/A"}")
                 ACK_PACKET = RECV_PACKET
                 rprint("=============================================")
+                client_graphing.log_packet_received("client")
                 break
 
             rprint("[yellow]Duplicated acknowledgement found.[yellow]")
@@ -156,6 +160,7 @@ def handle_send(fd, encoded_message):
                 retries += 1
                 rprint(f"[yellow]Resending packet. Retry #{retries}[yellow]")
                 send_packet(fd, packet_to_send)
+                client_graphing.log_packet_retransmitted()
             else:
                 break
 
@@ -177,3 +182,6 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         rprint("[red]Keyboard interrupt. Closing[red]")
         client_socket.close()
+
+    client_socket.close()
+    client_graphing.plot_client_metrics()

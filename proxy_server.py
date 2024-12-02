@@ -1,10 +1,11 @@
 import socket, select, argparse, ipaddress
-import sys
 import random
 import threading
 import time
 from rich import print as rprint
 from server import bind_socket, create_socket, close_socket, receive_data
+from utils import graphing
+import logging
 
 class proxy_server:
     def __init__(self, arguments):
@@ -173,6 +174,16 @@ if __name__ == '__main__':
     server_delay_time = handle_value_or_range(args.server_delay_time)
 
     proxy = proxy_server(args)
+    graphing = graphing()
+    # Configure logging
+    logging.basicConfig(
+        filename="proxy_server.log",
+        level=logging.INFO,
+        format="%(asctime)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+
+    logging.info("Proxy server started.")
 
     print("[PROXY SERVER CONFIGURATIONS]")
     print(f"Listen IP Address: {listen_ip}")
@@ -200,6 +211,8 @@ if __name__ == '__main__':
             for sock in ready:
                 if sock is client_fd:
                     client_packet, client_addr = receive_data(client_fd)  # Buffer size of 1024 bytes
+                    timestamp = time.time()
+
                     print(f"Client socket ready at {client_addr}")
                     print(f"\tReceived '{client_packet.decode()}")
 
@@ -213,15 +226,22 @@ if __name__ == '__main__':
                     # Forward packet from client to server
                     send_packet(server_fd, (target_ip, target_port), client_packet)
 
-                    routing_table[(target_ip, target_port)] = client_addr
+                    routing_table[(target_ip, target_port)] = {"address": client_addr, "timestamp": timestamp}
+                    logging.info(f"Forwarded packet from client {client_addr} to server {(target_ip, target_port)}")
                     print("=============================================")
 
                 if sock is server_fd:
                     server_packet, server_addr = receive_data(server_fd)
+                    timestamp = time.time()
                     print(f"Server sock ready at {server_addr}")
                     print(f"\tReceived '{server_packet.decode()}")
 
-                    client_addr = routing_table.get((target_ip, target_port))
+                    client_addr = routing_table.get((target_ip, target_port)).get("address")
+
+                    # Calculate latency
+                    latency = (timestamp - routing_table[(target_ip, target_port)]["timestamp"]) * 1000  # in ms
+                    graphing.log_latency(latency)
+                    logging.info(f"Latency from server to client: {latency:.2f} ms")
 
                     if client_addr:
                         # Drop
@@ -233,6 +253,7 @@ if __name__ == '__main__':
 
                         # Forward packet from server to client
                         send_packet(client_fd, client_addr, server_packet)
+                        logging.info(f"Forwarded packet from server {server_addr} to client {client_addr}")
                         print("=============================================")
 
     except socket.error as e:
@@ -246,3 +267,9 @@ if __name__ == '__main__':
         close_socket(client_fd)
         close_socket(server_fd)
         exit(-1)
+
+    finally:
+        logging.info("Proxy server closing down.")
+        close_socket(client_fd)
+        close_socket(server_fd)
+        graphing.plot_latency(client_delay, client_delay_time, server_delay, server_delay_time)

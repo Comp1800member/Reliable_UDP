@@ -1,7 +1,9 @@
 import socket, select, argparse, ipaddress, sys
 from rich import print as rprint
 
-from utils import compile_packet, get_fields, INIT_PACKET
+from utils import graphing, compile_packet, get_fields, INIT_PACKET
+
+server_graphing = graphing()
 
 def handle_arguments(args):
     ip = args.listen_ip
@@ -86,11 +88,7 @@ if __name__ == '__main__':
             for sock in ready:
                 data, client_addr = receive_data(sock)  # Buffer size of 1024 bytes
                 rprint(f"Received packet: {data}")
-
-                # Test: delay scenario
-                # if not set_delay:
-                #     time.sleep(5)
-                #     set_delay = True
+                server_graphing.log_packet_received("server")
 
                 received_packet_size, received_seq_number, received_ack_num, payload = get_fields(data)
                 rprint("[green bold]Client packet found:[green bold]")
@@ -103,6 +101,7 @@ if __name__ == '__main__':
                 rprint(f"[green]{payload}[green]")
                 packet_to_send = compile_packet(received_ack_num, received_seq_number, len(payload), "")
                 server_socket.sendto(packet_to_send, client_addr)
+                server_graphing.log_packet_sent("server")
                 rprint(f"\nSending packet {packet_to_send}")
                 print("=============================================")
 
@@ -110,3 +109,6 @@ if __name__ == '__main__':
         rprint("[red]Keyboard Interrupt: Server shutting down.[red]")
         close_socket(server_socket)
         exit(-1)
+
+    close_socket(server_socket)
+    server_graphing.plot_server_metrics()

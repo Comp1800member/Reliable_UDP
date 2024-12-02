@@ -1,4 +1,5 @@
-import rich
+from rich import print as rprint
+import matplotlib.pyplot as plt
 
 INIT_PACKET = 1
 PACKET_SIZE = 1024
@@ -34,3 +35,75 @@ def get_fields(packet):
         return int(packet_size), int(sequence_num), int(ack_num), str(payload)
     except Exception as e:
         print(f"[red]Error: {e}[red]")
+
+# Graphing utilities
+class graphing:
+    def __init__(self):
+        self.client_packets_received = 0
+        self.server_packets_received = 0
+        self.client_packets_sent = 0
+        self.server_packets_sent = 0
+        self.packets_retransmitted = 0
+        self.packets_lost = 0
+        self.latency = []
+
+    def log_packet_received(self, source):
+        if source == "client":
+            self.client_packets_received += 1
+        elif source == "server":
+            self.server_packets_received += 1
+
+    def log_packet_sent(self, destination):
+        if destination == "client":
+            self.client_packets_sent += 1
+        elif destination == "server":
+            self.server_packets_sent += 1
+
+    def log_packet_retransmitted(self):
+        self.packets_retransmitted += 1
+
+    def log_packet_lost(self):
+        self.packets_lost += 1
+
+    def log_latency(self, latency_ms):
+        self.latency.append(latency_ms)
+
+    def average_latency(self):
+        return sum(self.latency) / len(self.latency) if self.latency else 0
+
+    def plot_client_metrics(self):
+        self.packets_lost = self.client_packets_sent - self.client_packets_received
+        plt.figure(figsize=(10, 6))
+        plt.bar(["Packets Sent", "Packets Received", "Packets Retransmitted", "Packets Lost"],
+                [self.client_packets_sent, self.client_packets_received, self.packets_retransmitted, self.packets_lost],
+                color=['blue', 'green', 'red', 'black'])
+        plt.title("Client Packets Analysis")
+        plt.ylabel("Count")
+        plt.savefig("client_packets.png")
+        plt.close()
+
+    def plot_server_metrics(self):
+        # Plot packets received
+        plt.figure(figsize=(10, 6))
+        plt.bar(["Packets Received", "Packets Sent"],
+                [self.server_packets_received, self.server_packets_sent],
+                color=['cyan', 'pink'])
+        plt.title("Server Packets Analysis")
+        plt.ylabel("Count")
+        plt.savefig("server_packets.png")
+        plt.close()
+
+    def plot_latency(self, client_delay, client_delay_time, server_delay, server_delay_time):
+        # Plot latency
+        if self.latency:
+            plt.figure(figsize=(10, 6))
+            plt.plot(self.latency, label="Latency (ms)", marker='o')
+            plt.title(f"Latency over Time under client_delay={client_delay}%, client_delay_time={client_delay_time}ms, server_delay={server_delay}%, server_delay_time={server_delay_time}ms")
+            plt.xlabel("Packet Index")
+            plt.ylabel("Latency (ms)")
+            plt.legend()
+            plt.grid()
+            plt.savefig("latency_over_time.png")
+            plt.close()
+        else:
+            rprint("[red]Error: No latency data available to plot.[red]")
