@@ -20,19 +20,31 @@ class proxy_server:
         while True:
             try:
                 self.client_drop = int(input("Please enter a new client drop value "))
+                if self.client_drop > 100:
+                    print("Please enter a client drop value between 0 and 100")
+                    break
                 self.server_drop = int(input("Please enter a new server drop value "))
-                handle_drop(server_drop)
+                if self.server_drop > 100:
+                    print("Please enter a client drop value between 0 and 100")
+                    break
                 self.client_delay = int(input("Please enter a new client delay value "))
+                if self.client_delay > 100:
+                    print("Please enter a client drop value between 0 and 100")
+                    break
                 self.server_delay = int(input("Please enter a new server delay value "))
+                if self.server_delay > 100:
+                    print("Please enter a client drop value between 0 and 100")
+                    break
                 self.client_delay_time = int(input("Please enter a new client delay timevalue "))
                 self.server_delay_time = int(input("Please enter a new server delay time value "))
                 loop = int(input("Would you like to continue entering values? 1 for yes 0 for no"))
-                if loop == 0:
+                if loop != 1:
                     break
             except SystemExit:
                 print("Invalid input format")
             except ValueError:
-                print("Please enter an integer")
+                print("Please enter an integer between 0 and 100")
+                exit(-1)
 
 def handle_port(port):
     if port < 1 or port > 65535:
@@ -260,6 +272,10 @@ if __name__ == '__main__':
         rprint(f"[red]Socket error: {e}. Closing...[red]")
         close_socket(client_fd)
         close_socket(server_fd)
+        exit(-1)
+
+    except ValueError as e:
+        rprint(f"[red]Value error: {e}. Please enter a # between 0 and 100 Closing...[red]")
         exit(-1)
 
     except KeyboardInterrupt:
