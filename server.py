@@ -108,7 +108,5 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         rprint("[red]Keyboard Interrupt: Server shutting down.[red]")
         close_socket(server_socket)
-        exit(-1)
-
-    close_socket(server_socket)
-    server_graphing.plot_server_metrics()
+        server_graphing.plot_server_metrics()
+        exit(0)

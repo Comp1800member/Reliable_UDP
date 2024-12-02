@@ -276,16 +276,15 @@ if __name__ == '__main__':
 
     except ValueError as e:
         rprint(f"[red]Value error: {e}. Please enter a # between 0 and 100 Closing...[red]")
+        close_socket(client_fd)
+        close_socket(server_fd)
         exit(-1)
 
     except KeyboardInterrupt:
-        rprint("[red]Keyboard interrupt. Closing]")
+        rprint("[red]Keyboard interrupt. Closing")
         close_socket(client_fd)
         close_socket(server_fd)
-        exit(-1)
-
-    finally:
         logging.info("Proxy server closing down.")
-        close_socket(client_fd)
-        close_socket(server_fd)
-        graphing.plot_latency(client_delay, client_delay_time, server_delay, server_delay_time)
+        graphing.plot_latency(proxy.client_delay, proxy.client_delay_time, proxy.server_delay, proxy.server_delay_time)
+        exit(0)
+

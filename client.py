@@ -122,7 +122,6 @@ def receive_ack(fd):
                 print(f"\tPayload: {payload if not payload == "" else "N/A"}")
                 ACK_PACKET = RECV_PACKET
                 rprint("=============================================")
-                client_graphing.log_packet_received("client")
                 break
 
             rprint("[yellow]Duplicated acknowledgement found.[yellow]")
@@ -167,6 +166,7 @@ def handle_send(fd, encoded_message):
         if retries >= MAX_RETRIES:
             rprint("[red]Maximum retries exceeded. Try again.[red]")
             fd.close()
+            client_graphing.plot_client_metrics()
             sys.exit(-1)
 
         _, received_seq_num, received_ack_num, payload = get_fields(ACK_PACKET)
@@ -182,6 +182,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         rprint("[red]Keyboard interrupt. Closing[red]")
         client_socket.close()
-
-    client_socket.close()
-    client_graphing.plot_client_metrics()
+        client_graphing.plot_client_metrics()
+        exit(0)
