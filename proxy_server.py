@@ -186,7 +186,7 @@ if __name__ == '__main__':
     server_delay_time = handle_value_or_range(args.server_delay_time)
 
     proxy = proxy_server(args)
-    graphing = graphing()
+    proxy_graphing = graphing()
     # Configure logging
     logging.basicConfig(
         filename="proxy_server.log",
@@ -252,7 +252,7 @@ if __name__ == '__main__':
 
                     # Calculate latency
                     latency = (timestamp - routing_table[(target_ip, target_port)]["timestamp"]) * 1000  # in ms
-                    graphing.log_latency(latency)
+                    proxy_graphing.log_latency(latency)
                     logging.info(f"Latency from server to client: {latency:.2f} ms")
 
                     if client_addr:
@@ -281,10 +281,9 @@ if __name__ == '__main__':
         exit(-1)
 
     except KeyboardInterrupt:
+        proxy_graphing.plot_latency()
         rprint("[red]Keyboard interrupt. Closing")
         close_socket(client_fd)
         close_socket(server_fd)
         logging.info("Proxy server closing down.")
-        graphing.plot_latency(proxy.client_delay, proxy.client_delay_time, proxy.server_delay, proxy.server_delay_time)
         exit(0)
-

@@ -93,12 +93,12 @@ class graphing:
         plt.savefig("server_packets.png")
         plt.close()
 
-    def plot_latency(self, client_delay, client_delay_time, server_delay, server_delay_time):
+    def plot_latency(self):
         # Plot latency
         if self.latency:
             plt.figure(figsize=(10, 6))
             plt.plot(self.latency, label="Latency (ms)", marker='o')
-            plt.title(f"Latency over Time under client_delay={client_delay}%, client_delay_time={client_delay_time}ms, server_delay={server_delay}%, server_delay_time={server_delay_time}ms")
+            plt.title(f"Latency over Time")
             plt.xlabel("Packet Index")
             plt.ylabel("Latency (ms)")
             plt.legend()
