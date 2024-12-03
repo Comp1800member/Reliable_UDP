@@ -3,6 +3,8 @@ import sys
 import random
 import threading
 import time
+from audioop import error
+
 from rich import print as rprint
 from server import bind_socket, create_socket, close_socket, receive_data
 
@@ -19,31 +21,23 @@ class proxy_server:
         while True:
             try:
                 self.client_drop = int(input("Please enter a new client drop value "))
-                if self.client_drop > 100:
-                    print("Please enter a client drop value between 0 and 100")
-                    break
                 self.server_drop = int(input("Please enter a new server drop value "))
-                if self.server_drop > 100:
-                    print("Please enter a client drop value between 0 and 100")
-                    break
                 self.client_delay = int(input("Please enter a new client delay value "))
-                if self.client_delay > 100:
-                    print("Please enter a client drop value between 0 and 100")
-                    break
                 self.server_delay = int(input("Please enter a new server delay value "))
-                if self.server_delay > 100:
-                    print("Please enter a client drop value between 0 and 100")
-                    break
-                self.client_delay_time = int(input("Please enter a new client delay timevalue "))
-                self.server_delay_time = int(input("Please enter a new server delay time value "))
+                self.client_delay_time = handle_value_or_range(input("Please enter a new client delay timevalue "))
+                self.server_delay_time = handle_value_or_range(input("Please enter a new server delay time value "))
                 loop = int(input("Would you like to continue entering values? 1 for yes 0 for no"))
                 if loop != 1:
                     break
             except SystemExit:
                 print("Invalid input format")
+            except KeyboardInterrupt:
+                print("Keyboard Interrupt")
+                exit(-1)
             except ValueError:
                 print("Please enter an integer between 0 and 100")
                 exit(-1)
+
 
 def handle_port(port):
     if port < 1 or port > 65535:
@@ -131,11 +125,14 @@ def handle_drop(drop_percentage):
         return True
 
 def handle_delay(delay_percentage, delay_time):
+    delay = delay_time[0]
+    if len(delay_time) > 1:
+        delay = random.randint(delay_time[0], delay_time[1])
     random_num = random.random()
     # print(f"Random number for delaying {random_num}")
     if random_num < (delay_percentage / 100) != 0:
-        rprint(f"[yellow]\t>> Delaying packet by {delay_time} milliseconds[yellow]")
-        time.sleep(delay_time / 1000)
+        rprint(f"[yellow]\t>> Delaying packet by {delay} milliseconds[yellow]")
+        time.sleep(delay / 1000)
     else:
         rprint(f"[green]\t>> No delaying[green]")
 
@@ -144,7 +141,8 @@ def handle_value_or_range(delay):
     if delay.isdigit():
         try:
             int_delay = int(delay)
-            return int_delay
+            list_delay = [int_delay]
+            return list_delay
         except ValueError:
             rprint("[red]Error: Invalid value or range[red]")
             pass  # If it can't
@@ -166,44 +164,12 @@ def handle_value_or_range(delay):
                     rprint("[red]Error: Start cannot be greater than end of range[red]")
                     raise ValueError
                 range_list = [low, high]
-                return [low, high]
+                return range_list
         except ValueError as e:
             print(e)
             exit(-1)
 
-if __name__ == '__main__':
-    args = parse_arguments()
-    listen_ip = args.listen_ip
-    listen_port = args.listen_port
-    target_ip = args.target_ip
-    target_port = args.target_port
-    client_drop = args.client_drop
-    client_delay = args.client_delay
-    server_drop = args.server_drop
-    server_delay = args.server_delay
-    client_delay_time = handle_value_or_range(args.client_delay_time)
-    server_delay_time = handle_value_or_range(args.server_delay_time)
-
-    proxy = proxy_server(args)
-
-    print("[PROXY SERVER CONFIGURATIONS]")
-    print(f"Listen IP Address: {listen_ip}")
-    print(f"Listen Port: {listen_port}")
-    print(f"Target IP Address: {target_ip}")
-    print(f"Target Port: {target_port}")
-    print(f"Client Drop Percentage: {proxy.client_drop}")
-    print(f"Client Delay Percentage: {proxy.client_delay}")
-    print(f"Client Delay Time (milliseconds): {proxy.client_delay_time}")
-    print(f"Server Drop Percentage: {proxy.server_drop}")
-    print(f"Server Delay Percentage: {proxy.server_delay}")
-    print(f"Server Delay Time (milliseconds): {proxy.server_delay_time}")
-    print("=============================================")
-
-    client_fd = create_socket()
-    server_fd = create_socket()
-    routing_table = {}
-    bind_socket(client_fd, listen_ip, listen_port)
-
+def handle_packets(client_fd, server_fd, proxy, routing_table):
     try:
         threading.Thread(target=proxy.update_drop_delay, daemon=True).start()
         while True:
@@ -255,10 +221,54 @@ if __name__ == '__main__':
 
     except ValueError as e:
         rprint(f"[red]Value error: {e}. Please enter a # between 0 and 100 Closing...[red]")
+        close_socket(client_fd)
+        close_socket(server_fd)
         exit(-1)
 
     except KeyboardInterrupt:
         rprint("[red]Keyboard interrupt. Closing]")
+        close_socket(client_fd)
+        close_socket(server_fd)
+        exit(-1)
+
+if __name__ == '__main__':
+    args = parse_arguments()
+    listen_ip = args.listen_ip
+    listen_port = args.listen_port
+    target_ip = args.target_ip
+    target_port = args.target_port
+    client_drop = args.client_drop
+    client_delay = args.client_delay
+    server_drop = args.server_drop
+    server_delay = args.server_delay
+    client_delay_time = handle_value_or_range(args.client_delay_time)
+    server_delay_time = handle_value_or_range(args.server_delay_time)
+
+    proxy = proxy_server(args)
+
+    print("[PROXY SERVER CONFIGURATIONS]")
+    print(f"Listen IP Address: {listen_ip}")
+    print(f"Listen Port: {listen_port}")
+    print(f"Target IP Address: {target_ip}")
+    print(f"Target Port: {target_port}")
+    print(f"Client Drop Percentage: {proxy.client_drop}")
+    print(f"Client Delay Percentage: {proxy.client_delay}")
+    print(f"Client Delay Time (milliseconds): {proxy.client_delay_time}")
+    print(f"Server Drop Percentage: {proxy.server_drop}")
+    print(f"Server Delay Percentage: {proxy.server_delay}")
+    print(f"Server Delay Time (milliseconds): {proxy.server_delay_time}")
+    print("=============================================")
+
+    client_fd = create_socket()
+    server_fd = create_socket()
+    routing_table = {}
+    bind_socket(client_fd, listen_ip, listen_port)
+
+    try:
+        handle_packets(client_fd, server_fd, proxy, routing_table)
+
+    except error as e:
+        rprint("[red]Error. Closing]")
         close_socket(client_fd)
         close_socket(server_fd)
         exit(-1)

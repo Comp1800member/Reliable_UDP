@@ -67,6 +67,13 @@ def create_socket():
 
     return fd
 
+def close_socket(sock_to_close):
+    try:
+        sock_to_close.close()
+    except OSError as e:
+        rprint(f"[red]Error: {e}[red]")
+        exit(-1)
+
 def segment_packet(payload):
     num_segments = math.ceil(len(payload) / PAYLOAD_SIZE)
 
@@ -93,7 +100,7 @@ def send_packet(fd, encoded_packet):
         fd.settimeout(TIMEOUT)
     except socket.error as e:
         rprint(f"[red]Error sending packet: {format(e)}. Try again.[red]")
-        fd.close()
+        close_socket(fd)
         sys.exit()
 
 def is_duplicated_packet(received_packet):
@@ -130,7 +137,7 @@ def receive_ack(fd):
 
     except socket.error as e:
         rprint(f"[red]Error receiving ACK: {format(e)}. Try again.[red]")
-        fd.close()
+        close_socket(fd)
         sys.exit()
 
     return True
@@ -161,7 +168,7 @@ def handle_send(fd, encoded_message):
 
         if retries >= MAX_RETRIES:
             rprint("[red]Maximum retries exceeded. Try again.[red]")
-            fd.close()
+            close_socket(fd)
             sys.exit(-1)
 
         _, received_seq_num, received_ack_num, payload = get_fields(ACK_PACKET)
@@ -176,4 +183,4 @@ if __name__ == "__main__":
         start_transmission(client_socket)
     except KeyboardInterrupt:
         rprint("[red]Keyboard interrupt. Closing[red]")
-        client_socket.close()
+        close_socket(client_socket)
