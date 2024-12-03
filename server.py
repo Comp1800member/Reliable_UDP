@@ -58,28 +58,10 @@ def receive_data(server_socket):
         exit(-1)
     return data, client_address
 
-
-def send_ack():
-    pass
-
-
 set_delay = False
 seq_num = INIT_PACKET
 
-if __name__ == '__main__':
-
-
-    args = parse_arguments()
-    port = args.listen_port
-    ip_addr = args.listen_ip
-    print("[SERVER CONFIGURATIONS]")
-    print(f"IP Address: {ip_addr}")
-    print(f"Port: {port}")
-    print("=============================================")
-    server_socket = create_socket()
-
-    bind_socket(server_socket, ip_addr, port)
-
+def handle_packets(server_socket):
     try:
         while True:
             ready, _, _ = select.select([server_socket], [], [])
@@ -102,9 +84,39 @@ if __name__ == '__main__':
                 print("[DISPLAY CLIENT PAYLOAD]")
                 rprint(f"[green]{payload}[green]")
                 packet_to_send = compile_packet(received_ack_num, received_seq_number, len(payload), "")
-                server_socket.sendto(packet_to_send, client_addr)
+                send_packet(server_socket, packet_to_send, client_addr)
                 rprint(f"\nSending packet {packet_to_send}")
                 print("=============================================")
+    except KeyboardInterrupt:
+        rprint("[red]Keyboard Interrupt: Server shutting down.[red]")
+        close_socket(server_socket)
+        exit(-1)
+
+def send_packet(fd, encoded_packet, dest_addr):
+    try:
+        rprint(f"Sending packet {encoded_packet}.")
+        fd.sendto(encoded_packet, dest_addr)
+    except socket.error as e:
+        rprint(f"[red]Error sending packet: {format(e)}. Try again.[red]")
+        close_socket(fd)
+        sys.exit()
+
+if __name__ == '__main__':
+
+
+    args = parse_arguments()
+    port = args.listen_port
+    ip_addr = args.listen_ip
+    print("[SERVER CONFIGURATIONS]")
+    print(f"IP Address: {ip_addr}")
+    print(f"Port: {port}")
+    print("=============================================")
+    server_socket = create_socket()
+
+    bind_socket(server_socket, ip_addr, port)
+
+    try:
+        handle_packets(server_socket)
 
     except KeyboardInterrupt:
         rprint("[red]Keyboard Interrupt: Server shutting down.[red]")
