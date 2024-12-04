@@ -89,7 +89,6 @@ def handle_packets(server_socket):
 
 def send_packet(fd, encoded_packet, dest_addr):
     try:
-        rprint(f"Sending packet {encoded_packet}.")
         fd.sendto(encoded_packet, dest_addr)
     except socket.error as e:
         rprint(f"[red]Error sending packet: {format(e)}. Try again.[red]")
