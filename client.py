@@ -31,9 +31,10 @@ def parse_arguments():
         parser.print_help()
         sys.exit()
 
-    if ipaddress.ip_address(args.target_ip):
-        IP = args.target_ip
-    else:
+    try:
+        if ipaddress.ip_address(args.target_ip):
+            IP = args.target_ip
+    except ValueError:
         rprint("[red]Error: Invalid IP address.[red]")
         sys.exit(-1)
 
