@@ -17,8 +17,8 @@ def handle_arguments(args):
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--listen-ip", type=str, help="IP address of the server")
-    parser.add_argument("--listen-port", type=int, help="The port number")
+    parser.add_argument("--listen-ip", type=str, required=True, help="IP address of the server")
+    parser.add_argument("--listen-port", type=int, required=True, help="The port number")
     args = parser.parse_args()
     handle_arguments(args)
     return args
