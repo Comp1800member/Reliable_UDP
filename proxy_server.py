@@ -281,7 +281,7 @@ if __name__ == '__main__':
         exit(-1)
 
     except KeyboardInterrupt:
-        proxy_graphing.plot_latency()
+        # proxy_graphing.plot_latency()
         rprint("[red]Keyboard interrupt. Closing")
         close_socket(client_fd)
         close_socket(server_fd)

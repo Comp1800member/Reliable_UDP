@@ -50,23 +50,30 @@ class graphing:
     def log_packet_received(self, source):
         if source == "client":
             self.client_packets_received += 1
+            self.plot_client_metrics()
         elif source == "server":
             self.server_packets_received += 1
+            self.plot_server_metrics()
 
     def log_packet_sent(self, destination):
         if destination == "client":
             self.client_packets_sent += 1
+            self.plot_client_metrics()
         elif destination == "server":
             self.server_packets_sent += 1
+            self.plot_server_metrics()
 
     def log_packet_retransmitted(self):
         self.packets_retransmitted += 1
+        self.plot_client_metrics()
 
     def log_packet_lost(self):
         self.packets_lost += 1
+        self.plot_client_metrics()
 
     def log_latency(self, latency_ms):
         self.latency.append(latency_ms)
+        self.plot_latency()
 
     def average_latency(self):
         return sum(self.latency) / len(self.latency) if self.latency else 0
