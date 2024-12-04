@@ -6,6 +6,7 @@ import time
 
 from rich import print as rprint
 from server import bind_socket, create_socket, close_socket, receive_data
+from client import MAX_TIMEOUT
 
 class proxy_server:
     def __init__(self, arguments):
@@ -140,6 +141,9 @@ def handle_value_or_range(delay):
     if delay.isdigit():
         try:
             int_delay = int(delay)
+
+            if int_delay < 0 or int_delay > MAX_TIMEOUT:
+                rprint("[red]Error: Delay time value must be between 0 and 10000 milliseconds[red]")
             list_delay = [int_delay]
             return list_delay
         except ValueError:
