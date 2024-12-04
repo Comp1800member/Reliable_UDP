@@ -4,9 +4,11 @@ import random
 import threading
 import time
 
+from numpy.f2py.auxfuncs import throw_error
 from rich import print as rprint
 from server import bind_socket, create_socket, close_socket, receive_data
-from client import MAX_TIMEOUT
+
+MAX_DELAY = 10000 # in milliseconds
 
 class proxy_server:
     def __init__(self, arguments):
@@ -142,12 +144,12 @@ def handle_value_or_range(delay):
         try:
             int_delay = int(delay)
 
-            if int_delay < 0 or int_delay > MAX_TIMEOUT:
-                rprint("[red]Error: Delay time value must be between 0 and 10000 milliseconds[red]")
+            if int_delay < 0 or int_delay > MAX_DELAY:
+                raise ValueError
             list_delay = [int_delay]
             return list_delay
         except ValueError:
-            rprint("[red]Error: Invalid value or range[red]")
+            rprint("[red]Error: Invalid value or range (Delay time value must be between 0 and 10000 milliseconds). Please re-enter your value.[red]")
             pass  # If it can't
     else:
         try:
