@@ -3,7 +3,6 @@ import sys
 import random
 import threading
 import time
-from audioop import error
 
 from rich import print as rprint
 from server import bind_socket, create_socket, close_socket, receive_data
@@ -225,12 +224,6 @@ def handle_packets(client_fd, server_fd, proxy, routing_table):
         close_socket(server_fd)
         exit(-1)
 
-    except KeyboardInterrupt:
-        rprint("[red]Keyboard interrupt. Closing]")
-        close_socket(client_fd)
-        close_socket(server_fd)
-        exit(-1)
-
 if __name__ == '__main__':
     args = parse_arguments()
     listen_ip = args.listen_ip
@@ -267,8 +260,9 @@ if __name__ == '__main__':
     try:
         handle_packets(client_fd, server_fd, proxy, routing_table)
 
-    except error as e:
-        rprint("[red]Error. Closing]")
+
+    except KeyboardInterrupt:
+        rprint("[red]Keyboard interrupt. Closing]")
         close_socket(client_fd)
         close_socket(server_fd)
-        exit(-1)
+        exit(0)

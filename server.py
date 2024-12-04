@@ -69,11 +69,6 @@ def handle_packets(server_socket):
                 data, client_addr = receive_data(sock)  # Buffer size of 1024 bytes
                 rprint(f"Received packet: {data}")
 
-                # Test: delay scenario
-                # if not set_delay:
-                #     time.sleep(5)
-                #     set_delay = True
-
                 received_packet_size, received_seq_number, received_ack_num, payload = get_fields(data)
                 rprint("[green bold]Client packet found:[green bold]")
                 print(f"\tPacket size: {received_packet_size}")
